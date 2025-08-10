@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="512" height="512" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <radialGradient id="ringGrad" cx="45%" cy="45%" r="70%">
+      <stop offset="0%" stop-color="#ffffff" stop-opacity="0.10"/>
+      <stop offset="100%" stop-color="#6d2d79" stop-opacity="0.08"/>
+    </radialGradient>
+    <radialGradient id="sheen" cx="30%" cy="30%" r="60%">
+      <stop offset="0%" stop-color="#ffffff" stop-opacity="0.16"/>
+      <stop offset="100%" stop-color="#ffffff" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+  <g transform="translate(256,256)">
+    <!-- Toothed outer ring: 96 teeth approximate -->
+    <g fill="url(#ringGrad)" stroke="#6d2d79" stroke-opacity="0.45" stroke-width="1.4">
+      <path id="toothedRing" d=""/>
+    </g>
+    <script><![CDATA[
+      (function(){
+        var steps=96, Rin=200, Rout=220; var d='';
+        for(var i=0;i<steps;i++){
+          var a0=(i/steps)*Math.PI*2;
+          var a1=((i+0.42)/steps)*Math.PI*2;
+          var a2=((i+0.58)/steps)*Math.PI*2;
+          var a3=((i+1)/steps)*Math.PI*2;
+          var x0=Math.cos(a0)*Rin, y0=Math.sin(a0)*Rin;
+          var x1=Math.cos(a1)*Rout, y1=Math.sin(a1)*Rout;
+          var x2=Math.cos(a2)*Rout, y2=Math.sin(a2)*Rout;
+          var x3=Math.cos(a3)*Rin, y3=Math.sin(a3)*Rin;
+          if(i===0){ d+='M '+x0+' '+y0+' '; }
+          d+='L '+x1+' '+y1+' L '+x2+' '+y2+' L '+x3+' '+y3+' ';
+        }
+        d+='Z';
+        var p=document.getElementById('toothedRing');
+        if(p) p.setAttribute('d', d);
+      })();
+    ]]></script>
+
+    <!-- Inner hole (play plate opening) -->
+    <circle r="155" fill="#ffffff" fill-opacity="0" stroke="#6d2d79" stroke-opacity="0.35" stroke-width="1.2"/>
+
+    <!-- Sheen overlay -->
+    <circle r="235" fill="url(#sheen)"/>
+
+    <!-- Guide dashed -->
+    <g stroke="#6d2d79" stroke-opacity="0.25" stroke-width="1" fill="none">
+      <circle r="200" stroke-dasharray="6 6"/>
+      <circle r="220" stroke-opacity="0.18"/>
+    </g>
+  </g>
+</svg>

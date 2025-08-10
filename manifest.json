@@ -1,0 +1,19 @@
+{
+  "name": "SpiroArt - Generative Spirograph",
+  "short_name": "SpiroArt",
+  "description": "Create beautiful spirograph patterns with interactive gears, rings, and customizable pens",
+  "start_url": "/",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#1a1a2e",
+  "theme_color": "#ff8c40",
+  "categories": ["art", "graphics", "creativity", "drawing"],
+  "icons": [
+    {
+      "src": "/assets/svg/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

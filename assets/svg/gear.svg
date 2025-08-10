@@ -1,0 +1,69 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="512" height="512" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <radialGradient id="gBody" cx="40%" cy="40%" r="70%">
+      <stop offset="0%" stop-color="#ffffff" stop-opacity="0.22"/>
+      <stop offset="100%" stop-color="#ff5ea2" stop-opacity="0.08"/>
+    </radialGradient>
+    <radialGradient id="gSheen" cx="30%" cy="30%" r="60%">
+      <stop offset="0%" stop-color="#ffffff" stop-opacity="0.18"/>
+      <stop offset="100%" stop-color="#ffffff" stop-opacity="0"/>
+    </radialGradient>
+    <filter id="softGlow" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="2" result="b"/>
+      <feMerge>
+        <feMergeNode in="b"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+  <g transform="translate(256,256)">
+    <!-- Teeth ring -->
+    <path fill="url(#gBody)" stroke="#ff82bf" stroke-opacity="0.6" stroke-width="2"
+          d="M 190 0
+             L 210 0
+             A 210 210 0 0 1 203.2 54.6
+             L 183.5 49.4
+             A 190 190 0 0 0 190 0
+             Z" opacity="0"/>
+    <!-- Build teeth procedurally with 64 steps using strokes -->
+    <g id="teeth" fill="url(#gBody)" stroke="#ff82bf" stroke-opacity="0.55" stroke-width="1.5">
+      <!-- Approximate toothed ring -->
+      <path id="toothPath" d=""/>
+    </g>
+    <script><![CDATA[
+      (function(){
+        var steps=64, R1=190, R2=208; var d='';
+        for(var i=0;i<steps;i++){
+          var a0=(i/steps)*Math.PI*2;
+          var a1=((i+0.35)/steps)*Math.PI*2;
+          var a2=((i+0.65)/steps)*Math.PI*2;
+          var a3=((i+1)/steps)*Math.PI*2;
+          var x0=Math.cos(a0)*R1, y0=Math.sin(a0)*R1;
+          var x1=Math.cos(a1)*R2, y1=Math.sin(a1)*R2;
+          var x2=Math.cos(a2)*R2, y2=Math.sin(a2)*R2;
+          var x3=Math.cos(a3)*R1, y3=Math.sin(a3)*R1;
+          if(i===0){ d+='M '+x0+' '+y0+' '; }
+          d+='L '+x1+' '+y1+' L '+x2+' '+y2+' L '+x3+' '+y3+' ';
+        }
+        d+='Z';
+        var tp=document.getElementById('toothPath');
+        if(tp) tp.setAttribute('d', d);
+      })();
+    ]]></script>
+
+    <!-- Center bore -->
+    <circle r="40" fill="none" stroke="#ff82bf" stroke-opacity="0.6" stroke-width="2"/>
+
+    <!-- Hole array (concentric) -->
+    <g id="holes" fill="#ff82bf" fill-opacity="0.75" filter="url(#softGlow)">
+      <circle r="3" cx="0" cy="-110"/>
+      <circle r="3" cx="0" cy="-130"/>
+      <circle r="3" cx="0" cy="-150"/>
+      <circle r="3" cx="0" cy="-170"/>
+    </g>
+
+    <!-- Sheen overlay -->
+    <circle r="212" fill="url(#gSheen)"/>
+  </g>
+</svg>
