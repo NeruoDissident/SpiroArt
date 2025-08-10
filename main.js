@@ -183,28 +183,30 @@ const hint = document.getElementById('hint');
 // Responsive canvas sizing
 let AppReady = false;
 function resizeCanvas(){
-  // Use viewport dimensions for mobile compatibility
-  const vw = window.innerWidth;
-  const vh = window.innerHeight;
+  // Force full viewport dimensions
+  const w = window.innerWidth;
+  const h = window.innerHeight;
   const dpr = window.devicePixelRatio || 1;
   
-  // Set canvas size to full viewport
-  canvas.width = vw * dpr;
-  canvas.height = vh * dpr;
-  overlay.width = vw * dpr;
-  overlay.height = vh * dpr;
+  // Set canvas to exact viewport size
+  canvas.width = w * dpr;
+  canvas.height = h * dpr;
+  overlay.width = w * dpr;
+  overlay.height = h * dpr;
   
-  // Scale context for high DPI
-  ctx.scale(dpr, dpr);
-  octx.scale(dpr, dpr);
+  // Scale for device pixel ratio
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  octx.setTransform(dpr, 0, 0, dpr, 0, 0);
   
-  // Set CSS size to viewport
-  canvas.style.width = vw + 'px';
-  canvas.style.height = vh + 'px';
-  overlay.style.width = vw + 'px';
-  overlay.style.height = vh + 'px';
+  // Force CSS size to match viewport exactly
+  canvas.style.width = '100vw';
+  canvas.style.height = '100vh';
+  overlay.style.width = '100vw';
+  overlay.style.height = '100vh';
   
-  State.center = { x: vw/2, y: vh/2 };
+  // Center point
+  State.center = { x: w/2, y: h/2 };
+  
   if (AppReady) redrawStatic();
 }
 window.addEventListener('resize', resizeCanvas);
