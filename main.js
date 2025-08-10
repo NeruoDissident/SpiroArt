@@ -182,16 +182,30 @@ const hint = document.getElementById('hint');
 
 // Responsive canvas sizing
 let AppReady = false;
-function resizeCanvas() {
-  const dpr = Math.max(1, Math.min(2, window.devicePixelRatio || 1));
-  const rect = canvas.getBoundingClientRect();
-  canvas.width = Math.floor(rect.width * dpr);
-  canvas.height = Math.floor(rect.height * dpr);
-  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-  overlay.width = Math.floor(rect.width * dpr);
-  overlay.height = Math.floor(rect.height * dpr);
-  octx.setTransform(dpr, 0, 0, dpr, 0, 0);
-  if (AppReady) { redrawStatic(); }
+function resizeCanvas(){
+  // Use viewport dimensions for mobile compatibility
+  const vw = window.innerWidth;
+  const vh = window.innerHeight;
+  const dpr = window.devicePixelRatio || 1;
+  
+  // Set canvas size to full viewport
+  canvas.width = vw * dpr;
+  canvas.height = vh * dpr;
+  overlay.width = vw * dpr;
+  overlay.height = vh * dpr;
+  
+  // Scale context for high DPI
+  ctx.scale(dpr, dpr);
+  octx.scale(dpr, dpr);
+  
+  // Set CSS size to viewport
+  canvas.style.width = vw + 'px';
+  canvas.style.height = vh + 'px';
+  overlay.style.width = vw + 'px';
+  overlay.style.height = vh + 'px';
+  
+  State.center = { x: vw/2, y: vh/2 };
+  if (AppReady) redrawStatic();
 }
 window.addEventListener('resize', resizeCanvas);
 // initial sizing and drawing are performed in init() below once State is ready
