@@ -15,6 +15,11 @@ body{
   background: radial-gradient(1200px 800px at 70% -10%,#122046 0%,#0b1020 40%,#070b16 100%);
   color:var(--text);
   font: 16px/1.4 ui-sans-serif, system-ui, Segoe UI, Roboto, Helvetica, Arial, Apple Color Emoji, Segoe UI Emoji;
+  position:fixed;
+  top:0;
+  left:0;
+  width:100%;
+  height:100%;
 }
 .app-bar{
   position:fixed; inset:12px 12px auto 12px; height:56px; padding:8px 12px;
@@ -32,9 +37,9 @@ body{
 .btn-accent{background:linear-gradient(180deg,#7a3489,#5c2568); color:#ffffff; border-color:#6d2d79}
 .icon-btn{width:36px; height:36px; border-radius:10px; border:1px solid #3a2246; background:#1a1424; color:var(--text); cursor:pointer}
 
-.layout{position:fixed; top:0; left:0; width:100vw; height:100vh; overflow:hidden}
-.canvas-wrap{position:absolute; top:0; left:0; width:100vw; height:100vh}
-canvas{position:fixed; top:0; left:0; width:100vw; height:100vh; touch-action:none; z-index:1}
+.layout{position:fixed; inset:0; width:100%; height:100%}
+.canvas-wrap{position:absolute; top:0; left:0; width:100%; height:100%; overflow:hidden}
+canvas{position:absolute; top:0; left:0; width:100%; height:100%; touch-action:none}
 #overlay{position:absolute; inset:0; width:100%; height:100%; pointer-events:none}
 .hint{position:absolute; left:50%; top:50%; transform:translate(-50%,-50%); color:var(--muted); background:#0c1434aa; border:1px solid #22325f; padding:8px 12px; border-radius:10px; pointer-events:none}
 
