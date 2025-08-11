@@ -241,6 +241,9 @@ let usingGlobalPointerHandlers = false;
 let gesturePivot = null; // set on pointerdown
 let gestureDeltaAccum = 0; // radians awaiting application
 let gestureRaf = 0;
+// Visual guide for gestures
+let showGestureGuide = false;
+let gestureStartAngle = null;
 
 function applyGestureDeltaFrame(){
   if (!isPointerDown && Math.abs(gestureDeltaAccum) < 1e-5){ gestureRaf = 0; return; }
@@ -523,6 +526,47 @@ function drawOverlayFrame(timestamp = 0){
   }
   octx.beginPath(); octx.arc(p.x, p.y, 3.8 * pulse, 0, Math.PI*2); octx.fill();
   octx.restore();
+
+  // Gesture guide: show a subtle pivot circle and direction when dragging anywhere
+  if (showGestureGuide && gesturePivot){
+    const guideCol = 'rgba(255,255,255,0.45)';
+    const guideColSoft = 'rgba(255,255,255,0.18)';
+    const r = 44; // visual radius
+    octx.save();
+    octx.translate(gesturePivot.x, gesturePivot.y);
+    // outer soft ring
+    octx.strokeStyle = guideColSoft;
+    octx.lineWidth = 10;
+    octx.beginPath(); octx.arc(0,0,r,0,Math.PI*2); octx.stroke();
+    // inner crisp ring
+    octx.strokeStyle = guideCol;
+    octx.lineWidth = 2;
+    octx.beginPath(); octx.arc(0,0,r,0,Math.PI*2); octx.stroke();
+    // direction indicator based on lastAngle
+    if (lastAngle != null){
+      const a0 = gestureStartAngle ?? lastAngle;
+      const a1 = lastAngle;
+      const sweep = Math.max(-Math.PI*1.75, Math.min(Math.PI*1.75, a1 - a0));
+      octx.strokeStyle = hexWithAlpha(col, 0.85);
+      octx.lineWidth = 3;
+      octx.beginPath();
+      octx.arc(0,0,r, a0, a0 + sweep, sweep < 0);
+      octx.stroke();
+      // arrow head at current angle
+      const ax = Math.cos(a1) * r, ay = Math.sin(a1) * r;
+      octx.fillStyle = hexWithAlpha(col, 0.95);
+      octx.beginPath();
+      octx.moveTo(ax, ay);
+      const ah = 10, aw = 6;
+      const n = { x: Math.cos(a1 + Math.PI/2), y: Math.sin(a1 + Math.PI/2) };
+      const t = { x: Math.cos(a1), y: Math.sin(a1) };
+      octx.lineTo(ax - t.x*ah + n.x*aw, ay - t.y*ah + n.y*aw);
+      octx.lineTo(ax - t.x*ah - n.x*aw, ay - t.y*ah - n.y*aw);
+      octx.closePath();
+      octx.fill();
+    }
+    octx.restore();
+  }
 }
 
 function drawGear(ctxg, x, y, r, angle, holesAll = [], selectedHole = null){
@@ -1100,6 +1144,8 @@ function handleDragEnd(e){
   lastAngle = null;
   gesturePivot = null;
   canvas.style.touchAction = 'auto';
+  showGestureGuide = false;
+  gestureStartAngle = null;
   if (usingGlobalPointerHandlers){
     window.removeEventListener('pointermove', handleDragMove, { capture: true });
     window.removeEventListener('pointerup', handleDragEnd, { capture: true });
@@ -1122,6 +1168,8 @@ canvas.addEventListener('pointerdown', (e) => {
   canvas.style.touchAction = 'none';
   gesturePivot = getCanvasPoint(e); // rotate anywhere around local pivot
   lastAngle = getGestureAngle(e);
+  gestureStartAngle = lastAngle;
+  showGestureGuide = true;
   beginManual();
   // Route subsequent events to window so we keep control even if the pointer leaves the canvas
   if (!usingGlobalPointerHandlers){
