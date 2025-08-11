@@ -183,8 +183,11 @@ const hint = document.getElementById('hint');
 // Responsive canvas sizing
 let AppReady = false;
 function resizeCanvas(){
-  const w = window.innerWidth;
-  const h = window.innerHeight;
+  // Get actual canvas container dimensions for responsive layout
+  const container = document.querySelector('.canvas-wrap');
+  const rect = container.getBoundingClientRect();
+  const w = rect.width;
+  const h = rect.height;
   const dpr = window.devicePixelRatio || 1;
   
   canvas.width = w * dpr;
@@ -192,18 +195,34 @@ function resizeCanvas(){
   overlay.width = w * dpr;
   overlay.height = h * dpr;
   
-  ctx.scale(dpr, dpr);
-  octx.scale(dpr, dpr);
-  
+  // Set canvas style to container size, but draw at high DPI
   canvas.style.width = w + 'px';
   canvas.style.height = h + 'px';
   overlay.style.width = w + 'px';
   overlay.style.height = h + 'px';
+
+  // The actual drawing context is now larger, so scale all drawing operations
+  ctx.resetTransform();
+  octx.resetTransform();
+  ctx.scale(dpr, dpr);
+  octx.scale(dpr, dpr);
   
   State.center = { x: w/2, y: h/2 };
-  if (AppReady) redrawStatic();
+  
+  // After resizing, we just need to redraw the static elements.
+  // The scaling is handled by the canvas context transform.
+  if (AppReady) {
+    redrawStatic();
+  }
 }
 window.addEventListener('resize', resizeCanvas);
+// Listen for orientation changes on mobile
+window.addEventListener('orientationchange', () => {
+  setTimeout(resizeCanvas, 100);
+});
+
+// Setup container observer after DOM is ready
+let containerObserver;
 // initial sizing and drawing are performed in init() below once State is ready
 
 // Theme select
@@ -218,9 +237,19 @@ if (themeSelect){
 let isPointerDown = false;
 let spaceHeld = false;
 let lastAngle = null;
+let usingGlobalPointerHandlers = false;
+let gesturePivot = null; // set on pointerdown
+let gestureDeltaAccum = 0; // radians awaiting application
+let gestureRaf = 0;
+
+function applyGestureDeltaFrame(){
+  if (!isPointerDown && Math.abs(gestureDeltaAccum) < 1e-5){ gestureRaf = 0; return; }
+  const delta = gestureDeltaAccum; gestureDeltaAccum = 0;
+  if (delta !== 0){ manualStep(delta); }
+  gestureRaf = requestAnimationFrame(applyGestureDeltaFrame);
+}
 
 // Data model for rings/gears/holes
-// Radii are in pixels; we derive holes as relative distances from gear center.
 const Rings = [
   { id: 'R96', R: 180 },
   { id: 'R84', R: 160 },
@@ -237,6 +266,7 @@ const Gears = [
   { id: 'G24', r: 42 },
   { id: 'G18', r: 32 },
 ];
+
 
 function makeHoles(gear) {
   // Create a set of hole offsets as ratios of gear radius
@@ -266,6 +296,10 @@ const State = {
   // Color palette system
   selectedPalette: 'neon',
   selectedColorIndex: 0,
+  // Input behavior
+  controlMode: 'anywhere', // 'anywhere' | 'center'
+  inputSensitivity: 1.0,   // 1:1 mapping
+  anywhereGain: 1.0        // no extra gain; gesture delta maps directly
 };
 State.hole = makeHoles(State.gear)[4];
 
@@ -393,23 +427,17 @@ function pointAt(t){
 
 // Static guide rendering (rings + gear outline)
 function redrawStatic(){
-  const { width, height } = canvas;
-  // Preserve ink on ctx; only clear overlay
-  octx.clearRect(0,0,overlay.width,overlay.height);
+  if(!AppReady) return;
+  
+  const dpr = window.devicePixelRatio || 1;
+  const width = canvas.width / dpr;
+  const height = canvas.height / dpr;
   State.center.x = width/2; State.center.y = height/2;
 
   // Background subtle grid glow
   drawBackdrop();
 
-  // Ring
-  octx.save();
-  octx.strokeStyle = hexWithAlpha(Themes[State.theme].accent, 0.25);
-  octx.lineWidth = 1.25;
-  octx.setLineDash([6,6]);
-  octx.beginPath(); octx.arc(State.center.x, State.center.y, State.ring.R, 0, Math.PI*2); octx.stroke();
-  octx.restore();
-
-  // Gear outline at start angle
+  // Ring and gear are drawn by drawOverlayFrame
   drawOverlayFrame();
 }
 
@@ -418,10 +446,13 @@ function circle(x,y,r){
 }
 
 function drawBackdrop(){
-  const g = ctx.createRadialGradient(State.center.x, State.center.y, 0, State.center.x, State.center.y, Math.max(canvas.width, canvas.height)*0.7);
+  const dpr = window.devicePixelRatio || 1;
+  const viewW = canvas.width / dpr;
+  const viewH = canvas.height / dpr;
+  const g = ctx.createRadialGradient(State.center.x, State.center.y, 0, State.center.x, State.center.y, Math.max(viewW, viewH)*0.7);
   g.addColorStop(0, 'rgba(16,24,60,.25)');
   g.addColorStop(1, 'rgba(2,6,23,0)');
-  ctx.fillStyle = g; ctx.fillRect(0,0,canvas.width,canvas.height);
+  ctx.fillStyle = g; ctx.fillRect(0,0,viewW,viewH);
 }
 
 // --- Animated overlay (gear, hole, rotation) ---
@@ -440,8 +471,10 @@ function gearAngleAt(t){
 }
 
 function drawOverlayFrame(timestamp = 0){
-  const {width,height}=overlay;
-  octx.clearRect(0,0,width,height);
+  const dpr = window.devicePixelRatio || 1;
+  const viewW = overlay.width / dpr;
+  const viewH = overlay.height / dpr;
+  octx.clearRect(0,0,viewW,viewH);
   
   // Calculate smooth easing for gear spin
   if (State.lastOverlayTime === 0) State.lastOverlayTime = timestamp;
@@ -924,9 +957,6 @@ speedInput.addEventListener('input', () => { /* affects tick */ });
 
 // Initialize
 function init(){
-  // make canvas fill available viewport minus app bar margins
-  const resizeObserver = new ResizeObserver(resizeCanvas);
-  resizeObserver.observe(document.body);
   populateRings();
   populateGears();
   populateHoles();
@@ -936,6 +966,12 @@ function init(){
   if (palette && palette.colors.length > 0) {
     penColor.value = palette.colors[State.selectedColorIndex];
   }
+  
+  // Update hint text for mobile
+  hint.innerHTML = 'Tap Configure to pick ring, gear, and hole. Use Random to explore.<br><small>📱 Pinch to zoom in browser</small>';
+  
+  // Simple resize handling - no complex observers needed
+  
   resizeCanvas();
   AppReady = true;
   redrawStatic();
@@ -1001,13 +1037,6 @@ function previewOnce(){
 // no applyStrokeStyle in reverted version
 
 // ===== Manual drawing controls: click/drag or hold Space and drag =====
-function getAngleFromEvent(e){
-  const rect = canvas.getBoundingClientRect();
-  const x = (e.clientX ?? (e.touches && e.touches[0].clientX)) - rect.left;
-  const y = (e.clientY ?? (e.touches && e.touches[0].clientY)) - rect.top;
-  return Math.atan2(y - State.center.y, x - State.center.x);
-}
-
 function beginManual(){
   if (State.drawing) stopDraw();
   hint.style.display = 'none';
@@ -1016,16 +1045,37 @@ function beginManual(){
   ctx.lineJoin = 'round';
 }
 
+function getCanvasPoint(e){
+  const rect = canvas.getBoundingClientRect();
+  const clientX = (e.clientX ?? (e.touches && e.touches[0]?.clientX));
+  const clientY = (e.clientY ?? (e.touches && e.touches[0]?.clientY));
+  return { x: clientX - rect.left, y: clientY - rect.top };
+}
+
+function getGestureAngle(e){
+  if (State.controlMode === 'anywhere' && gesturePivot){
+    const p = getCanvasPoint(e);
+    return Math.atan2(p.y - gesturePivot.y, p.x - gesturePivot.x);
+  }
+  // Fallback: around canvas center
+  const p = getCanvasPoint(e);
+  return Math.atan2(p.y - State.center.y, p.x - State.center.x);
+}
+
+function computeAdaptiveGain(e){
+  return 1; // strict 1:1 mapping
+}
+
 function manualStep(delta){
   if (!isFinite(delta) || delta === 0) return;
+  // 1:1 mapping with gesture delta
   const maxChunk = 0.02; // rad
   const steps = Math.max(1, Math.ceil(Math.abs(delta)/maxChunk));
   const step = delta/steps;
   let prevP = pointAt(State.t);
   for (let i=0;i<steps;i++){
     State.t += step;
-    // Advance color cycle phase for manual drawing
-    State.cyclePhase += Math.abs(step) * 8; // scale factor for visible cycling
+    State.cyclePhase += Math.abs(step) * 8;
     const p = pointAt(State.t);
     const strokeCol = currentStrokeColor();
     strokeSegmentWithGlow(ctx, prevP, p, strokeCol);
@@ -1033,26 +1083,67 @@ function manualStep(delta){
   }
 }
 
-canvas.addEventListener('pointerdown', (e) => {
-  isPointerDown = true; canvas.setPointerCapture(e.pointerId);
-  lastAngle = getAngleFromEvent(e);
-  beginManual();
-});
-canvas.addEventListener('pointermove', (e) => {
+function handleDragMove(e){
   if (!(isPointerDown || spaceHeld)) return;
-  const a = getAngleFromEvent(e);
+  try { if (e.cancelable) e.preventDefault(); } catch(_){}
+  const a = getGestureAngle(e);
   if (lastAngle == null){ lastAngle = a; return; }
   let delta = a - lastAngle;
-  // wrap into [-pi, pi]
   if (delta > Math.PI) delta -= 2*Math.PI;
   if (delta < -Math.PI) delta += 2*Math.PI;
-  manualStep(delta);
+  gestureDeltaAccum += delta; // accumulate; 1:1 mapping
+  if (!gestureRaf) { gestureRaf = requestAnimationFrame(applyGestureDeltaFrame); }
   lastAngle = a;
+}
+function handleDragEnd(e){
+  isPointerDown = false;
+  lastAngle = null;
+  gesturePivot = null;
+  canvas.style.touchAction = 'auto';
+  if (usingGlobalPointerHandlers){
+    window.removeEventListener('pointermove', handleDragMove, { capture: true });
+    window.removeEventListener('pointerup', handleDragEnd, { capture: true });
+    window.removeEventListener('pointercancel', handleDragEnd, { capture: true });
+    usingGlobalPointerHandlers = false;
+  }
+  // let RAF drain remaining small deltas and stop next frame
+}
+
+canvas.addEventListener('pointerdown', (e) => {
+  // If the configuration panel is open, close it so it doesn't block gestures on mobile
+  if (panel && panel.classList.contains('show')){
+    panel.classList.remove('show');
+    if (openPanelBtn) openPanelBtn.setAttribute('aria-expanded','false');
+  }
+
+  isPointerDown = true;
+  try { if (e.cancelable) e.preventDefault(); } catch(_){}
+  // Disable native gestures while dragging
+  canvas.style.touchAction = 'none';
+  gesturePivot = getCanvasPoint(e); // rotate anywhere around local pivot
+  lastAngle = getGestureAngle(e);
+  beginManual();
+  // Route subsequent events to window so we keep control even if the pointer leaves the canvas
+  if (!usingGlobalPointerHandlers){
+    window.addEventListener('pointermove', handleDragMove, { passive: false, capture: true });
+    window.addEventListener('pointerup', handleDragEnd, { passive: false, capture: true });
+    window.addEventListener('pointercancel', handleDragEnd, { passive: false, capture: true });
+    usingGlobalPointerHandlers = true;
+  }
 });
-function endPointer(e){ isPointerDown = false; lastAngle = null; try{ canvas.releasePointerCapture(e.pointerId); }catch(_){} }
+
+// Keep canvas move handler but disable when using global handlers to avoid double processing
+canvas.addEventListener('pointermove', (e) => {
+  if (usingGlobalPointerHandlers) return;
+  handleDragMove(e);
+});
+
+function endPointer(e){
+  handleDragEnd(e);
+}
+
 canvas.addEventListener('pointerup', endPointer);
 canvas.addEventListener('pointercancel', endPointer);
-canvas.addEventListener('pointerleave', endPointer);
 
 window.addEventListener('keydown', (e) => {
   if (e.code === 'Space') { e.preventDefault(); if (!spaceHeld){ spaceHeld = true; beginManual(); } }
@@ -1060,3 +1151,12 @@ window.addEventListener('keydown', (e) => {
 window.addEventListener('keyup', (e) => {
   if (e.code === 'Space') { spaceHeld = false; lastAngle = null; }
 });
+
+// Trackpad/mouse wheel: rotate using vertical delta
+canvas.addEventListener('wheel', (e) => {
+  // Make wheel smooth and prevent page zoom/scroll on canvas region
+  e.preventDefault();
+  const scale = 0.0018; // tuned for trackpads
+  const delta = -e.deltaY * scale;
+  manualStep(delta);
+}, { passive: false });

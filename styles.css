@@ -10,22 +10,63 @@
   --shadow: 0 10px 30px rgba(0,0,0,.5);
 }
 *{box-sizing:border-box}
-html,body{height:100%;margin:0;padding:0;overflow:hidden}
+html,body{
+  margin:0;
+  padding:0;
+  overflow:hidden;
+  width:100%;
+  height:100%;
+}
 body{
   background: radial-gradient(1200px 800px at 70% -10%,#122046 0%,#0b1020 40%,#070b16 100%);
   color:var(--text);
   font: 16px/1.4 ui-sans-serif, system-ui, Segoe UI, Roboto, Helvetica, Arial, Apple Color Emoji, Segoe UI Emoji;
-  position:fixed;
-  top:0;
-  left:0;
-  width:100%;
-  height:100%;
+  position:relative;
 }
 .app-bar{
-  position:fixed; inset:12px 12px auto 12px; height:56px; padding:8px 12px;
+  position:fixed; 
+  top:12px; 
+  left:12px; 
+  right:12px; 
+  /* Add safe area support for notched devices */
+  top:max(12px, env(safe-area-inset-top));
+  left:max(12px, env(safe-area-inset-left));
+  right:max(12px, env(safe-area-inset-right));
+  height:56px; 
+  padding:8px 12px;
   background:var(--panel); backdrop-filter:blur(20px); border:1px solid #22325f; border-radius:16px;
   display:flex; align-items:center; justify-content:space-between; box-shadow:var(--shadow);
   z-index:10;
+}
+
+/* Mobile-first responsive design */
+@media (max-width: 480px) {
+  .app-bar {
+    height:auto;
+    min-height:48px;
+    flex-wrap:wrap;
+    gap:8px;
+    padding:8px;
+    top:4px;
+    left:4px;
+    right:4px;
+  }
+  
+  .brand {
+    flex:1;
+    min-width:120px;
+  }
+  
+  .actions {
+    flex-wrap:wrap;
+    gap:4px;
+  }
+  
+  .btn {
+    padding:0 8px;
+    font-size:12px;
+    height:32px;
+  }
 }
 .brand{display:flex; align-items:center; gap:10px; font-weight:700}
 .logo{display:inline-grid; place-items:center; width:32px; height:32px; border-radius:9px; background:linear-gradient(135deg,var(--accent-2),var(--accent)); color:#fff; box-shadow:0 8px 24px #6d2d7966}
@@ -37,13 +78,57 @@ body{
 .btn-accent{background:linear-gradient(180deg,#7a3489,#5c2568); color:#ffffff; border-color:#6d2d79}
 .icon-btn{width:36px; height:36px; border-radius:10px; border:1px solid #3a2246; background:#1a1424; color:var(--text); cursor:pointer}
 
-.layout{position:fixed; inset:0; width:100%; height:100%}
+.layout{position:absolute; top:0; left:0; width:100%; height:100%}
 .canvas-wrap{position:absolute; top:0; left:0; width:100%; height:100%; overflow:hidden}
-canvas{position:absolute; top:0; left:0; width:100%; height:100%; touch-action:none}
-#overlay{position:absolute; inset:0; width:100%; height:100%; pointer-events:none}
+
+/* Canvas responsive sizing */
+@media (max-width: 480px) {
+  .canvas-wrap {
+    top:60px; /* Account for mobile app bar height */
+    height:calc(100% - 60px);
+  }
+}
+
+@media (max-width: 768px) and (min-width: 481px) {
+  .canvas-wrap {
+    top:54px; /* Account for tablet app bar height */
+    height:calc(100% - 54px);
+  }
+}
+canvas{position:absolute; top:0; left:0; width:100%; height:100%}
+/* Allow zooming on mobile but keep layout simple */
+@media (max-width: 768px), (pointer: coarse) {
+  canvas{touch-action:none}
+}
+@media (min-width: 769px) and (pointer: fine) {
+  canvas{touch-action:none}
+}
+#overlay{position:absolute; inset:0; width:100%; height:100%; pointer-events:none; touch-action:none}
+/* Prevent scroll chaining/pull-to-refresh during interaction */
+html, body, .canvas-wrap, canvas{ overscroll-behavior: contain }
 .hint{position:absolute; left:50%; top:50%; transform:translate(-50%,-50%); color:var(--muted); background:#0c1434aa; border:1px solid #22325f; padding:8px 12px; border-radius:10px; pointer-events:none}
 
-.panel{position:fixed; right:12px; top:84px; bottom:12px; width:min(420px,95vw); background:var(--panel); border:1px solid #233056; border-radius:16px; box-shadow:var(--shadow); transform:translateY(10px) scale(.98); opacity:0; pointer-events:none; transition:.34s ease; display:flex; flex-direction:column; z-index:30}
+.panel{
+  position:fixed; 
+  right:12px; 
+  right:max(12px, env(safe-area-inset-right));
+  top:84px; 
+  top:max(84px, calc(env(safe-area-inset-top) + 72px));
+  bottom:12px; 
+  bottom:max(12px, env(safe-area-inset-bottom));
+  width:min(420px,95vw); 
+  background:var(--panel); 
+  border:1px solid #233056; 
+  border-radius:16px; 
+  box-shadow:var(--shadow); 
+  transform:translateY(10px) scale(.98); 
+  opacity:0; 
+  pointer-events:none; 
+  transition:.34s ease; 
+  display:flex; 
+  flex-direction:column; 
+  z-index:30;
+}
 .panel[open], .panel.show{opacity:1; transform:none; pointer-events:auto}
 .panel-header{display:flex; align-items:center; justify-content:space-between; padding:14px 16px; border-bottom:1px solid #22325f}
 .panel-body{overflow:auto; padding:12px 16px; display:flex; flex-direction:column; gap:16px}
@@ -75,9 +160,46 @@ input[type="color"], input[type="range"]{width:100%}
 .color-swatch:hover{transform:scale(1.1); border-color:rgba(255,255,255,0.3)}
 .color-swatch.active{border-color:var(--accent-2); box-shadow:0 0 0 2px #ff8c4033}
 
-@media (max-width: 900px){
-  .app-bar{inset:8px; height:52px}
-  .panel{top:76px; right:8px; left:8px; width:auto}
+/* Tablet breakpoint */
+@media (max-width: 768px) and (min-width: 481px) {
+  .app-bar {
+    height:48px;
+    padding:6px 10px;
+    top:6px;
+    left:6px;
+    right:6px;
+  }
+  
+  .btn {
+    height:36px;
+    padding:0 10px;
+    font-size:14px;
+  }
+}
+
+/* Existing large mobile breakpoint - update */
+@media (max-width: 900px) and (min-width: 769px) {
+  .app-bar{
+    top:8px; 
+    left:8px; 
+    right:8px; 
+    /* Mobile safe area support */
+    top:max(8px, env(safe-area-inset-top));
+    left:max(8px, env(safe-area-inset-left));
+    right:max(8px, env(safe-area-inset-right));
+    height:52px;
+  }
+  .panel{
+    top:76px; 
+    top:max(76px, calc(env(safe-area-inset-top) + 68px));
+    right:8px; 
+    right:max(8px, env(safe-area-inset-right));
+    left:8px; 
+    left:max(8px, env(safe-area-inset-left));
+    bottom:8px;
+    bottom:max(8px, env(safe-area-inset-bottom));
+    width:auto;
+  }
   .controls{grid-template-columns:1fr}
   
   /* Mobile touch targets - minimum 44px */
