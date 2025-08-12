@@ -22,7 +22,7 @@
       <span class="title">SpiroArt</span>
     </div>
     <div class="actions">
-      <button id="btn-random" class="btn">Random</button>
+      <button id="btn-demo" class="btn">Demo</button>
       <button id="btn-clear" class="btn">Clear</button>
       <button id="btn-fullscreen" class="btn" title="Fullscreen">⤢</button>
       <button id="btn-screenshot" class="btn" title="Export PNG">PNG</button>
@@ -35,7 +35,7 @@
     <section class="canvas-wrap">
       <canvas id="stage" aria-label="Drawing canvas" role="img"></canvas>
       <canvas id="overlay" aria-hidden="true"></canvas>
-      <div id="hint" class="hint">Tap Configure to pick ring, gear, and hole. Use Random to explore.</div>
+      <div id="hint" class="hint">Circle anywhere to draw. Tap Demo to watch it create patterns.</div>
     </section>
 
     <aside id="panel" class="panel" aria-hidden="true">
@@ -71,21 +71,16 @@
         <div class="group">
           <div class="group">
             <div class="group-title">Pen</div>
+<!-- Presets -->
+<h4 class="group-title">Style Presets</h4>
+<div id="preset-list" class="chip-grid" aria-label="Presets"></div>
             <div class="group">
-              <div class="group-title">Color Palette</div>
-              <select id="palette-select">
-                <option value="neon" selected>Neon</option>
-                <option value="cyberpunk">Cyberpunk</option>
-                <option value="autumn">Autumn</option>
-                <option value="sunset">Sunset</option>
-                <option value="ocean">Ocean</option>
-                <option value="pastel">Pastel</option>
-                <option value="noir">Noir</option>
-              </select>
-              <div id="color-palette-grid" class="color-palette-grid"></div>
-            </div>
-            <label>
-              Custom Color
+              <!-- Hidden field keeps palette value for JS -->
+<input id="palette-select" type="hidden" value="neon" />
+<h4 class="group-title">Colors</h4>
+<div id="color-palette-grid" class="color-palette-grid"></div>
+              <label>
+                Custom Color
               <input id="pen-color" type="color" value="#ff8c40" />
             </label>
             <label>
@@ -96,15 +91,10 @@
                 <option value="royalGold">Royal Purple + Gold</option>
                 <option value="mono">Mono</option>
               </select>
-            </label>
-            <label>
               Width
               <input id="pen-width" type="range" min="1" max="8" step="1" value="2" />
             </label>
-            <label>
-              Speed
-              <input id="draw-speed" type="range" min="0.1" max="3" step="0.1" value="1" />
-            </label>
+            <input id="draw-speed" type="hidden" value="1" />
             <label class="checkbox">
               <input id="pen-glow" type="checkbox" checked /> Glow
             </label>
@@ -115,18 +105,6 @@
               Cycle Speed
               <input id="cycle-speed" type="range" min="0.1" max="3" step="0.1" value="1.2" />
             </label>
-            <div class="group">
-              <div class="group-title">Random</div>
-              <label class="checkbox">
-                <input id="random-speed" type="checkbox" /> Randomize Speed per figure
-              </label>
-              <label class="checkbox">
-                <input id="theme-cycle" type="checkbox" /> Cycle Theme per figure
-              </label>
-              <label class="checkbox">
-                <input id="auto-screenshot" type="checkbox" /> Auto Screenshot per figure
-              </label>
-            </div>
           </div>
         </div>
 

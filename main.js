@@ -169,12 +169,13 @@ const autoShotChk = document.getElementById('auto-screenshot');
 
 const paletteSelect = document.getElementById('palette-select');
 const colorPaletteGrid = document.getElementById('color-palette-grid');
+const presetList = document.getElementById('preset-list');
 
 const btnDraw = document.getElementById('btn-draw');
 const btnStop = document.getElementById('btn-stop');
 const btnPreview = document.getElementById('btn-preview');
 const btnClear = document.getElementById('btn-clear');
-const btnRandom = document.getElementById('btn-random');
+const btnDemo = document.getElementById('btn-demo');
 const btnFullscreen = document.getElementById('btn-fullscreen');
 const btnScreenshot = document.getElementById('btn-screenshot');
 
@@ -287,7 +288,7 @@ const State = {
   t: 0,
   speed: 1,
   drawing: false,
-  autoRandom: false,
+  demoRunning: false,
   cyclePhase: 0, // time-based hue rotation
   center: { x: 0, y: 0 },
   steps: 0,
@@ -366,6 +367,43 @@ function populateHoles(){
     });
     holeList.appendChild(btn);
   });
+}
+
+// Preset definitions
+const Presets = {
+  classic: { label:'Classic', palette:'sunset', penWidth:2, glow:false, cycle:false },
+  neon:    { label:'Neon Glow', palette:'neon', penWidth:3, glow:true, cycle:true },
+  pastel:  { label:'Pastel', palette:'pastel', penWidth:2, glow:false, cycle:false },
+  mono:    { label:'Mono', palette:'noir', penWidth:2, glow:false, cycle:false }
+};
+
+function populatePresets(){
+  if (!presetList) return;
+  presetList.innerHTML='';
+  Object.entries(Presets).forEach(([key,p])=>{
+    const btn=document.createElement('button');
+    btn.className='chip';
+    btn.textContent=p.label;
+    if (State.selectedPreset===key) btn.classList.add('active');
+    btn.addEventListener('click',()=>{selectPreset(key,btn);});
+    presetList.appendChild(btn);
+  });
+}
+function selectPreset(key, el){
+  State.selectedPreset=key;
+  const p=Presets[key];
+  // Apply palette and pen settings
+  State.selectedPalette=p.palette;
+  paletteSelect.value=p.palette;
+  State.selectedColorIndex=0;
+  const palette=ColorPalettes[p.palette];
+  if (palette && palette.colors && palette.colors.length){ penColor.value = palette.colors[0]; }
+  penWidth.value=String(p.penWidth);
+  penGlow.checked=p.glow;
+  penCycle.checked=p.cycle;
+  populateColorPalette();
+  setActive(el, presetList);
+  redrawStatic();
 }
 
 function populateColorPalette(){
@@ -821,31 +859,9 @@ function tick(ts){
   State.t = t;
   if (t >= period()+0.1){
     // Completed one figure
-    stopDraw(true); // internal stop, keep autoRandom as-is
-    if (State.autoRandom){
-      // Optionally cycle theme
-      if (themeCycleChk && themeCycleChk.checked){
-        const keys = Object.keys(Themes);
-        const i = Math.max(0, keys.indexOf(State.theme));
-        State.theme = keys[(i+1)%keys.length];
-        themeSelect.value = State.theme;
-      }
-      // Optionally randomize draw speed
-      if (randomSpeedChk && randomSpeedChk.checked){
-        const s = (Math.random()*2.4 + 0.3).toFixed(1); // 0.3 - 2.7
-        speedInput.value = s;
-      }
-      // Optionally take a screenshot of the finished figure
-      if (autoShotChk && autoShotChk.checked){
-        try{
-          const link = document.createElement('a');
-          link.download = `spiroart-${Date.now()}.png`;
-          link.href = canvas.toDataURL('image/png');
-          link.click();
-        }catch(_){/* ignore */}
-      }
-      applyRandomConfig();
-      startDraw();
+    stopDraw(true);
+    if (State.demoRunning){
+      demoNextPass();
     }
     return;
   }
@@ -872,8 +888,6 @@ function startDraw(){
 function stopDraw(internal=false){
   State.drawing = false;
   if (raf) cancelAnimationFrame(raf);
-  // Only disable autoRandom when user explicitly stops
-  if (!internal) State.autoRandom = false;
 }
 
 // Controls
@@ -897,13 +911,70 @@ btnDraw.addEventListener('click', () => startDraw());
 btnStop.addEventListener('click', () => stopDraw(false));
 btnPreview.addEventListener('click', () => previewOnce());
 btnClear.addEventListener('click', () => { stopDraw(); ctx.clearRect(0,0,canvas.width,canvas.height); redrawStatic(); hint.style.display=''; });
-// Helpers for random mode
+// Random helpers
 function randInt(n){ return Math.floor(Math.random()*n); }
 function hslToHex(h,s,l){
   s/=100; l/=100; const c=(1-Math.abs(2*l-1))*s; const x=c*(1-Math.abs(((h/60)%2)-1)); const m=l-c/2;
   let r=0,g=0,b=0; if (0<=h&&h<60){r=c;g=x;} else if (60<=h&&h<120){r=x;g=c;} else if (120<=h&&h<180){g=c;b=x;} else if (180<=h&&h<240){g=x;b=c;} else if (240<=h&&h<300){r=x;b=c;} else {r=c;b=x;}
   const toHex=v=>('0'+Math.round((v+m)*255).toString(16)).slice(-2);
   return `#${toHex(r)}${toHex(g)}${toHex(b)}`;
+}
+
+// ===== Demo mode =====
+function demoRandomizeOnce(){
+  // Pattern
+  State.pattern = Math.random() < 0.5 ? 'hypo' : 'epi';
+  // Ring
+  const rIdx = randInt(Rings.length);
+  State.ring = Rings[rIdx];
+  // Gear
+  const gIdx = randInt(Gears.length);
+  State.gear = Gears[gIdx];
+  // Hole within selected gear
+  const holes = makeHoles(State.gear);
+  State.hole = holes[randInt(holes.length)];
+  // Theme
+  const themeKeys = Object.keys(Themes);
+  State.theme = themeKeys[randInt(themeKeys.length)];
+  if (themeSelect) themeSelect.value = State.theme;
+  // Palette + color
+  const paletteKeys = Object.keys(ColorPalettes);
+  State.selectedPalette = paletteKeys[randInt(paletteKeys.length)];
+  const palette = ColorPalettes[State.selectedPalette];
+  if (palette && palette.colors.length){
+    const ci = randInt(palette.colors.length);
+    State.selectedColorIndex = ci;
+    if (penColor) penColor.value = palette.colors[ci];
+  }
+  // Color cycling on/off randomly
+  if (penCycle){ penCycle.checked = Math.random() < 0.5; }
+  if (cycleSpeed){ cycleSpeed.value = '1.2'; }
+  // Pen width: thin/med/thick random
+  if (penWidth){ penWidth.value = String([2,3,4,5][randInt(4)]); }
+  // Fast speed for demo
+  if (speedInput){ speedInput.value = '2.4'; }
+  // Refresh overlay/static
+  redrawStatic();
+}
+
+function demoNextPass(){
+  demoRandomizeOnce();
+  startDraw();
+}
+
+if (btnDemo){
+  btnDemo.addEventListener('click', () => {
+    if (!State.demoRunning){
+      State.demoRunning = true;
+      if (btnDemo) btnDemo.textContent = 'Stop Demo';
+      hint.style.display = 'none';
+      demoNextPass();
+    } else {
+      State.demoRunning = false;
+      if (btnDemo) btnDemo.textContent = 'Demo';
+      stopDraw(false);
+    }
+  });
 }
 function randomPenColor(){
   // Bright but not neon; avoid very light colors
@@ -912,26 +983,7 @@ function randomPenColor(){
   const l = 48 + Math.floor(Math.random()*10); // 48-58
   return hslToHex(h,s,l);
 }
-function applyRandomConfig(){
-  const ring = Rings[randInt(Rings.length)];
-  const gear = Gears[randInt(Gears.length)];
-  const hs = makeHoles(gear);
-  const hole = hs[randInt(hs.length)];
-  const pattern = Math.random()>.5?'hypo':'epi';
-  State.pattern = pattern; State.ring = ring; State.gear = gear; State.hole = hole;
-  // randomize pen color
-  const col = randomPenColor(); penColor.value = col;
-  // UI reflect
-  populateRings(); populateGears(); populateHoles();
-  segs.forEach(s=>s.setAttribute('aria-selected', s.dataset.pattern===pattern?'true':'false'));
-  redrawStatic();
-}
-
-btnRandom.addEventListener('click', () => {
-  State.autoRandom = true;
-  applyRandomConfig();
-  startDraw();
-});
+// Legacy auto-random mode removed; replaced by Demo mode
 
 btnFullscreen.addEventListener('click', async () => {
   try{
@@ -1005,6 +1057,7 @@ function init(){
   populateGears();
   populateHoles();
   populateColorPalette();
+  populatePresets();
   // Set initial pen color from selected palette
   const palette = ColorPalettes[State.selectedPalette];
   if (palette && palette.colors.length > 0) {
@@ -1012,7 +1065,7 @@ function init(){
   }
   
   // Update hint text for mobile
-  hint.innerHTML = 'Tap Configure to pick ring, gear, and hole. Use Random to explore.<br><small>📱 Pinch to zoom in browser</small>';
+  hint.innerHTML = 'Circle anywhere to draw. Pick a preset or tap Demo to watch it create patterns.<br><small>📱 Pinch to zoom</small>';
   
   // Simple resize handling - no complex observers needed
   
